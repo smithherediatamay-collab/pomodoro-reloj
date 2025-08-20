@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reloj + Temporizador 45′ (Pomodoro)</title>
+  <meta name="description" content="Página con reloj en vivo y temporizador estilo Pomodoro con alarma de 45 minutos." />
+  <meta name="theme-color" content="#0f172a">
+  <style>
+    :root{
+      --bg:#0b1220; --panel:#0f172a; --text:#e5e7eb; --muted:#94a3b8;
+      --brand:#60a5fa; --brand2:#34d399; --radius:1.25rem; --shadow:0 20px 40px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial,sans-serif;color:var(--text);
+      background:radial-gradient(1300px 600px at 15% -10%,rgba(96,165,250,.18),transparent),
+                 radial-gradient(1000px 500px at 120% -20%,rgba(52,211,153,.18),transparent),
+                 var(--bg);
+    }
+    .wrap{max-width:900px;margin:auto;padding:28px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800}
+    .logo{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(135deg,var(--brand),var(--brand2));box-shadow:var(--shadow)}
+    .panel{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);
+      border-radius:var(--radius);box-shadow:var(--shadow)}
+    .grid{display:grid;gap:20px}
+
+    /* Reloj grande */
+    .clock{padding:24px;text-align:center}
+    .clock h1{font-size:clamp(2rem,10vw,5rem);letter-spacing:.04em;margin:8px 0}
+    .date{color:var(--muted);font-size:1.05rem}
+
+    /* Temporizador */
+    .timer{padding:24px}
+    .time{font-size:clamp(2rem,9vw,4rem);text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.06em;margin:6px 0 14px}
+    .controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+    button, input{
+      font:inherit;color:var(--text);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+      padding:10px 14px;border-radius:12px
+    }
+    button{cursor:pointer}
+    button.primary{background:linear-gradient(135deg,var(--brand),#3b82f6);border:0;font-weight:700}
+    button.secondary{background:linear-gradient(135deg,var(--brand2),#10b981);border:0;font-weight:700}
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .progress{height:10px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+    .bar{height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--brand2))}
+
+    footer{padding:24px;text-align:center;color:var(--muted)}
+
+    @media (min-width: 880px){
+      .grid{grid-template-columns:1fr 1fr}
+      .timer .inner{display:grid;grid-template-rows:auto auto 1fr;gap:10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><div class="logo">⏰</div> <span>Reloj + Pomodoro 45′</span></div>
+      <div class="muted">Funciona offline • Alarma integrada</div>
+    </header>
+
+    <section class="grid">
+      <!-- Reloj en vivo -->
+      <div class="panel clock" aria-live="polite">
+        <div class="muted">Hora actual</div>
+        <h1 id="liveClock">00:00:00</h1>
+        <div class="date" id="liveDate">—</div>
+      </div>
+
+      <!-- Temporizador / Pomodoro 45 -->
+      <div class="panel timer">
+        <div class="inner">
+          <div style="text-align:center" class="muted">Temporizador estilo Pomodoro</div>
+          <div class="time" id="countdown">45:00</div>
+          <div class="progress"><div id="bar" class="bar"></div></div>
+
+          <div class="controls" style="margin-top:14px">
+            <button id="start45" class="primary">Iniciar 45′</button>
+            <button id="pause">Pausar</button>
+            <button id="resume">Reanudar</button>
+            <button id="reset" class="secondary">Reiniciar</button>
+          </div>
+
+          <div class="row">
+            <label for="customMin" class="muted">Personalizado (min):</label>
+            <input id="customMin" type="number" min="1" max="240" value="25" style="width:100px" />
+            <button id="startCustom">Iniciar</button>
+          </div>
+
+          <div class="row muted" style="text-align:center">
+            <span id="status">Listo para empezar</span>
+          </div>
+
+          <div class="row" style="justify-content:space-between">
+            <small class="muted">Sonará una alarma al terminar.</small>
+            <button id="testBeep" title="Probar sonido">🔊 Probar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Hecho para ciclos de enfoque largos (45′) parecidos al método Pomodoro. Mantén esta pestaña abierta.
+    </footer>
+  </div>
+
+  <script>
+    // ================== Reloj en vivo ==================
+    const clockEl = document.getElementById('liveClock');
+    const dateEl  = document.getElementById('liveDate');
+    function two(n){return n.toString().padStart(2,'0')}
+    function tickClock(){
+      const now = new Date();
+      const h = two(now.getHours());
+      const m = two(now.getMinutes());
+      const s = two(now.getSeconds());
+      clockEl.textContent = `${h}:${m}:${s}`;
+      dateEl.textContent = now.toLocaleDateString('es-PE', {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+    }
+    tickClock(); setInterval(tickClock, 1000);
+
+    // ================== Sonido (Web Audio) ==================
+    let audioCtx;
+    function beep(duration=800){
+      try{
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        o.type='sine';
+        o.frequency.value = 880; // A5
+        g.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.3, audioCtx.currentTime+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration/1000);
+        o.start(); o.stop(audioCtx.currentTime + duration/1000);
+      }catch(e){ console.warn('Audio no disponible', e); }
+    }
+
+    // Secuencia de alarma (varios beeps)
+    function alarm(){
+      let count = 0; const id = setInterval(()=>{
+        beep(500); count++; if(count>=5) clearInterval(id);
+      }, 700);
+      if(Notification?.permission==='granted'){
+        new Notification('⏰ ¡Tiempo cumplido!', { body: 'Tu sesión ha terminado.', silent:false });
+      }
+    }
+
+    // ================== Notificaciones ==================
+    if('Notification' in window && Notification.permission==='default'){
+      // Pedir permiso suave después de interactuar con la página
+      document.addEventListener('click', function ask(){
+        Notification.requestPermission().catch(()=>{});
+        document.removeEventListener('click', ask);
+      });
+    }
+
+    // ================== Temporizador ==================
+    const cdEl = document.getElementById('countdown');
+    const barEl= document.getElementById('bar');
+    const statusEl = document.getElementById('status');
+
+    let durationMs = 45*60*1000; // por defecto 45 min
+    let endTime = null; // timestamp ms
+    let startTime = null;
+    let paused = true;
+    let remainingMs = durationMs;
+    let timerId = null;
+
+    function fmt(ms){
+      const total = Math.max(0, Math.round(ms/1000));
+      const mm = Math.floor(total/60);
+      const ss = total % 60;
+      return `${two(mm)}:${two(ss)}`;
+    }
+    function render(ms){
+      cdEl.textContent = fmt(ms);
+      const pct = 100 - Math.floor((ms / durationMs) * 100);
+      barEl.style.width = Math.min(100, Math.max(0, pct)) + '%';
+      document.title = `${fmt(ms)} • Pomodoro 45′`;
+    }
+    function loop(){
+      const now = Date.now();
+      remainingMs = Math.max(0, endTime - now);
+      render(remainingMs);
+      if(remainingMs<=0){
+        clearInterval(timerId); timerId=null; paused=true; statusEl.textContent='Finalizado';
+        alarm();
+      }
+    }
+    function start(ms){
+      durationMs = ms; remainingMs = ms; startTime = Date.now(); endTime = startTime + ms;
+      paused=false; render(remainingMs); statusEl.textContent='En curso…';
+      clearInterval(timerId); timerId=setInterval(loop, 250);
+    }
+    function pause(){
+      if(paused) return; paused=true; clearInterval(timerId); timerId=null; remainingMs = Math.max(0, endTime - Date.now());
+      statusEl.textContent='Pausado';
+    }
+    function resume(){
+      if(!paused) return; paused=false; endTime = Date.now() + remainingMs; statusEl.textContent='En curso…';
+      clearInterval(timerId); timerId=setInterval(loop, 250);
+    }
+    function reset(){
+      paused=true; clearInterval(timerId); timerId=null; remainingMs = durationMs; render(remainingMs); statusEl.textContent='Listo para empezar';
+    }
+
+    // Controles
+    document.getElementById('start45').addEventListener('click', ()=> start(45*60*1000));
+    document.getElementById('pause').addEventListener('click', pause);
+    document.getElementById('resume').addEventListener('click', resume);
+    document.getElementById('reset').addEventListener('click', ()=>{ reset(); });
+
+    document.getElementById('startCustom').addEventListener('click', ()=>{
+      const m = Math.max(1, Math.min(240, parseInt(document.getElementById('customMin').value||'25',10)));
+      start(m*60*1000);
+    });
+
+    document.getElementById('testBeep').addEventListener('click', ()=> beep(400));
+
+    // Render inicial
+    render(45*60*1000);
+  </script>
+</body>
+</html>
