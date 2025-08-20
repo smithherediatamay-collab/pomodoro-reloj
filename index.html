@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pomodoro - 45 minutos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>⏰ Reloj Pomodoro</h1>
+    <div id="clock"></div>
+    <div id="timer">45:00</div>
+
+    <div class="buttons">
+      <button onclick="startPomodoro()">Iniciar 45′</button>
+      <button onclick="pauseTimer()">Pausar</button>
+      <button onclick="resumeTimer()">Reanudar</button>
+      <button onclick="resetTimer()">Reiniciar</button>
+    </div>
+
+    <div class="custom">
+      <input type="number" id="customMinutes" placeholder="Minutos">
+      <button onclick="startCustom()">Iniciar</button>
+    </div>
+
+    <progress id="progressBar" value="0" max="2700"></progress>
+    <audio id="alarmSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
